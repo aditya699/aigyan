@@ -1,6 +1,6 @@
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 from config import BOT_TOKEN, logger
-from bot.handlers.commands import start_command, about_command
+from bot.handlers.commands import start_command, about_command, news_command, get_help
 from bot.handlers.messages import text_message_handler
 
 def create_bot_application():
@@ -11,6 +11,8 @@ def create_bot_application():
     # Register command handlers
     tg_app.add_handler(CommandHandler("start", start_command))
     tg_app.add_handler(CommandHandler("about", about_command))
+    tg_app.add_handler(CommandHandler("news", news_command))
+    tg_app.add_handler(CommandHandler("help", get_help))
     logger.info("Command handlers registered")
     
     # Register message handlers
