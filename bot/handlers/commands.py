@@ -48,7 +48,7 @@ async def news_command(update, context):
 
     response_summarizer=client.responses.create(
         model="gpt-4o-mini",
-        input=f"Summarize the following text: {response.output_text}"
+        input=f"Summarize the following news and give links also in the end: {response.output_text}"
     )
     
     await update.message.reply_text(response_summarizer.output_text)
