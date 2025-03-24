@@ -1,11 +1,12 @@
 '''
 This file contains the message handlers for the bot.
 '''
+from datetime import datetime
 from config import logger
 import os
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
-
+from database.get_client import get_client
 load_dotenv()
 
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
@@ -129,6 +130,19 @@ async def text_message_handler(update, context):
             )
         ]
         response =  await llm.ainvoke(message)
+        #push the user message , reply and time in the database
+        client_db = await get_client()
+        try:
+            await client_db.ai_bot.messages.insert_one({
+                "user_message": update.message.text,
+                "reply": response.content,
+                "time": datetime.now(),
+                "section": "main_chat",
+                "user_id": user.id,
+                "user_name": user.first_name
+            })
+        except Exception as e:
+            logger.error(f"Error in inserting message into database: {str(e)}")
 
         await update.message.reply_text(response.content)
     except Exception as e:
