@@ -10,6 +10,8 @@ from datetime import datetime
 import urllib.request
 import xml.etree.ElementTree as ET
 from database.get_client import get_client
+from database.utils import is_session_active
+import uuid
 load_dotenv()
 
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
@@ -25,23 +27,35 @@ async def start_command(update, context):
     Use /news to get latest ai news.
     Use /research to get latest research papers.
     Otherwise you can ask anything (if you need any resources or anything else)
+    Made by Aditya Bhatt
+    Reach out to me on LinkedIn <https://www.linkedin.com/in/adityaabhatt/>
+    Reach out to me on Instagram <https://www.instagram.com/your_data_scientist/>
     '''
     #push the user message , reply and time in the database
     client_db = await get_client()
+    #these are static messages so we don't need to push them in the database
     try:
-        await client_db.ai_bot.messages.insert_one({
-            "user_message": update.message.text,
-            "reply": welcome_message,
+        logger.info(f"Sending welcome message to {user.first_name}")
+        client_db.ai_bot.static_messages.insert_one({
+            "message": welcome_message,
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "time": datetime.now(),
+            "section": "start"
+        })
+        await update.message.reply_text(welcome_message)
+     
+    except Exception as e:
+        await client_db.ai_bot.errors.insert_one({
+            "error": str(e),
             "time": datetime.now(),
             "section": "start",
             "user_id": user.id,
             "user_name": user.first_name
         })
-    except Exception as e:
         logger.error(f"Error in inserting message into database: {str(e)}")
 
-    logger.info(f"Sending welcome message to {user.first_name}")
-    await update.message.reply_text(welcome_message)
+  
 
 async def about_command(update, context):
     user = update.effective_user
@@ -50,18 +64,25 @@ async def about_command(update, context):
     #push the user message , reply and time in the database
     client_db = await get_client()
     try:
-        await client_db.ai_bot.messages.insert_one({
-            "user_message": update.message.text,
-            "reply": about_message,
+        client_db.ai_bot.static_messages.insert_one({
+            "message": about_message,
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "time": datetime.now(),
+            "section": "about"
+        })
+        await update.message.reply_text(about_message)
+    except Exception as e:
+        await client_db.ai_bot.errors.insert_one({
+            "error": str(e),
             "time": datetime.now(),
             "section": "about",
             "user_id": user.id,
             "user_name": user.first_name
         })
-    except Exception as e:
         logger.error(f"Error in inserting message into database: {str(e)}")
 
-    await update.message.reply_text(about_message)
+   
 
 async def news_command(update, context):
     user = update.effective_user
@@ -73,7 +94,7 @@ async def news_command(update, context):
         input=f"Go to web and short summarize latest ai news on {today}"
       
     )
-
+    
     response_summarizer=client.responses.create(
         model="gpt-4o-mini",
         input=f"Summarize the following news in short and concise manner and give links also in the end: {response.output_text}"
@@ -81,38 +102,52 @@ async def news_command(update, context):
     #push the user message , reply and time in the database
     client_db = await get_client()
     try:
-        await client_db.ai_bot.messages.insert_one({
-            "user_message": update.message.text,
-            "reply": response_summarizer.output_text,
+        client_db.ai_bot.static_messages.insert_one({
+            "message": response_summarizer.output_text,
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "time": datetime.now(),
+            "section": "news"
+        })
+        await update.message.reply_text(response_summarizer.output_text)
+    except Exception as e:
+        await client_db.ai_bot.errors.insert_one({
+            "error": str(e),
             "time": datetime.now(),
             "section": "news",
             "user_id": user.id,
             "user_name": user.first_name
         })
-    except Exception as e:
         logger.error(f"Error in inserting message into database: {str(e)}")
 
-    await update.message.reply_text(response_summarizer.output_text)
+ 
 
 async def get_help(update, context):
     user = update.effective_user
-    help_message = f"This bot can help you to get started with ai and become master in ai. \n Use /start to get started. \n Use /news to get latest ai news. \n Use /about to know more about the bot \n Use /research to get latest research papers.Otherwise you can ask anything (if you need any resources or anything else)"
+    help_message = f"This bot can help you to get started with ai and become master in ai. \n Use /start to get started. \n Use /news to get latest ai news. \n Use /about to know more about the bot \n Use /research to get latest research papers.\n Otherwise you can ask anything (if you need any resources or anything else) \n Made by Aditya Bhatt \n Reach out to me on LinkedIn <https://www.linkedin.com/in/adityaabhatt/> \n Reach out to me on Instagram <https://www.instagram.com/your_data_scientist/>"
     logger.info(f"Sending help message to {user.first_name}")
     #push the user message , reply and time in the database
     client_db = await get_client()
     try:
-        await client_db.ai_bot.messages.insert_one({
-            "user_message": update.message.text,
-            "reply": help_message,
+        client_db.ai_bot.static_messages.insert_one({
+            "message": help_message,
+            "user_id": user.id,
+            "user_name": user.first_name,
+            "time": datetime.now(),
+            "section": "help"
+        })
+        await update.message.reply_text(help_message)
+
+    except Exception as e:
+        await client_db.ai_bot.errors.insert_one({
+            "error": str(e),
             "time": datetime.now(),
             "section": "help",
             "user_id": user.id,
             "user_name": user.first_name
         })
-    except Exception as e:
-        logger.error(f"Error in inserting message into database: {str(e)}")
 
-    await update.message.reply_text(help_message)
+        logger.error(f"Error in help command: {str(e)}")
 
 async def research_command(update, context):
     user = update.effective_user
@@ -135,22 +170,33 @@ async def research_command(update, context):
         #push the user message , reply and time in the database
         client_db = await get_client()
         try:
-            await client_db.ai_bot.messages.insert_one({
-                "user_message": update.message.text,
-                "reply": response,
+            client_db.ai_bot.static_messages.insert_one({
+                "message": response,
+                "user_id": user.id,
+                "user_name": user.first_name,
+                "time": datetime.now(),
+                "section": "research"
+            })
+            await update.message.reply_text(response)
+        except Exception as e:
+            await client_db.ai_bot.errors.insert_one({
+                "error": str(e),
                 "time": datetime.now(),
                 "section": "research",
                 "user_id": user.id,
                 "user_name": user.first_name
             })
-        except Exception as e:
-            logger.error(f"Error in inserting message into database: {str(e)}")
-
-        await update.message.reply_text(response)
+        
         
     except Exception as e:
         error_message = "Sorry, there was an error fetching research papers."
         logger.error(f"Error in research command: {str(e)}")
-        await update.message.reply_text(error_message)
+        await client_db.ai_bot.errors.insert_one({
+            "error": str(e),
+            "time": datetime.now(),
+            "section": "research",
+            "user_id": user.id,
+            "user_name": user.first_name
+        })
 
 # Add more command handlers here
