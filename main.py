@@ -5,6 +5,9 @@ from api.app import create_app
 from api.routes import router
 from bot.handlers.commands import schedule_news_cache_refresh
 import asyncio
+from fastapi import FastAPI, Request
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
 # Create applications
 app = create_app()
 tg_app = create_bot_application()
