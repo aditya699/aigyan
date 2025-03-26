@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 from database.get_client import get_client
 from database.utils import is_session_active
 import uuid
+import asyncio
 load_dotenv()
 
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
@@ -271,4 +272,50 @@ async def research_command(update, context):
             "user_name": user.first_name
         })
 
-# Add more command handlers here
+#function to run as background task to update cache
+async def refresh_news_cache():
+    """
+    Background task to periodically refresh the news cache,
+    so no user has to wait for a cache miss.
+    """
+    current_time = datetime.now()
+    today = current_time.strftime("%Y-%m-%d")
+    
+    logger.info("Background task: Refreshing news cache")
+    
+    try:
+        # Make API calls to get fresh news data
+        response = client.responses.create(
+            model="gpt-4o-mini",
+            tools=[{"type":"web_search_preview"}],
+            input=f"Go to web and short summarize latest ai news on {today}"
+        )
+        
+        response_summarizer = client.responses.create(
+            model="gpt-4o-mini",
+            input=f"Summarize the following news in short and concise manner and give links also in the end: {response.output_text}"
+        )
+        
+        # Update the cache with new data
+        news_cache["data"] = response_summarizer.output_text
+        news_cache["timestamp"] = current_time
+        logger.info("News cache updated by background task")
+    except Exception as e:
+        logger.error(f"Background task error refreshing news cache: {str(e)}")
+
+async def schedule_news_cache_refresh():
+    """
+    Schedule the periodic refresh of the news cache.
+    This runs in the background as long as the bot is running.
+    """
+    while True:
+        try:
+            # Refresh the cache
+            await refresh_news_cache()
+            
+            # Wait for 3 hours (10800 seconds) before refreshing again
+            await asyncio.sleep(10800)
+        except Exception as e:
+            logger.error(f"Error in cache refresh schedule: {str(e)}")
+            # If there's an error, wait a bit and try again
+            await asyncio.sleep(300)  # Wait 5 minutes before retrying

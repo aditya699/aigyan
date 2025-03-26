@@ -3,7 +3,8 @@ from config import logger
 from bot.app import create_bot_application
 from api.app import create_app
 from api.routes import router
-
+from bot.handlers.commands import schedule_news_cache_refresh
+import asyncio
 # Create applications
 app = create_app()
 tg_app = create_bot_application()
@@ -19,6 +20,9 @@ async def startup():
     await tg_app.start() #This is used to start the bot
     await tg_app.updater.start_polling() #This is used to start the polling(which is used to check for new messages(continuous checking))
     logger.info("Bot polling started successfully!")
+    # Schedule the news cache refresh
+    asyncio.create_task(schedule_news_cache_refresh())
+    logger.info("News cache refresh scheduled successfully!")
 
 @app.on_event("shutdown")
 async def shutdown():
